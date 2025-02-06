@@ -6,7 +6,8 @@ from torch.utils.data import DataLoader, Dataset
 # Path to trained model
 MODEL_PATH = "results/epoch20-acc081"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 16  # Adjust based on available GPU memory
+BATCH_SIZE = 16  # Adjust based on GPU memory
+PREDICT_THRESHOLD = 0.7  # Change this for better precision-recall balance
 
 # Load tokenizer and model
 tokenizer = BertTokenizer.from_pretrained(MODEL_PATH)
@@ -19,7 +20,18 @@ FILE_PATH = "groundtruth_trainset.csv"
 df = pd.read_csv(FILE_PATH)
 
 # Define column that contains the text to classify
-TEXT_COLUMN = "justification"  # Change if the column name is different
+TEXT_COLUMN = "justification"  # Change if needed
+
+# Retrieve label names from dataset (assumes columns represent labels)
+label_columns = df.columns.tolist()
+label_columns.remove(TEXT_COLUMN)  # Remove text column if present
+label_columns = [col for col in label_columns if col.lower() != "id"]  # Remove ID if present
+
+# Ensure model has label mapping (otherwise, use dataset labels)
+if hasattr(model.config, "id2label"):
+    label_names = [model.config.id2label[i] for i in range(len(model.config.id2label))]
+else:
+    label_names = label_columns  # Use dataset labels as a fallback
 
 # Custom Dataset class to handle batching
 class JustificationDataset(Dataset):
@@ -58,19 +70,17 @@ with torch.no_grad():
         probs = sigmoid(logits)
 
         # Apply threshold (default 0.5)
-        predictions = (probs >= 0.5).int().cpu().numpy()  # Adjust threshold if needed
+        predictions = (probs >= PREDICT_THRESHOLD).int().cpu().numpy()
         all_predictions.extend(predictions)
 
 # Convert predictions to label names
-label_names = model.config.id2label if hasattr(model.config, "id2label") else [f"label_{i}" for i in range(logits.shape[1])]
-
 predicted_labels = [
     [label_names[i] for i, pred in enumerate(pred_row) if pred == 1]
     for pred_row in all_predictions
 ]
 
 # Add predictions to DataFrame
-df["Predicted Labels"] = ["; ".join(labels) for labels in predicted_labels]
+df["Category"] = ["; ".join(labels) if labels else "No Label" for labels in predicted_labels]
 
 # Save results
 OUTPUT_FILE = "classified_results.csv"
