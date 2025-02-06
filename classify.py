@@ -147,7 +147,7 @@ class MultilabelTrainer:
 
             return (loss, outputs) if return_outputs else loss
         
-    def compute_metrics(p):
+    def compute_metrics(self,p):
         sigmoid = lambda x: 1 / (1 + np.exp(-x))  # Sigmoid activation
         preds = sigmoid(p.predictions) > 0.5  # Convert logits to binary (threshold = 0.5)
         labels = p.label_ids
