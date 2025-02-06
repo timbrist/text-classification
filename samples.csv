@@ -1,0 +1,100 @@
+id,Jusitfication ,Category
+743,since it's about to do a right turn.,Ego car driving intention: Vehicle lateral activity:Turning
+1101,because traffic is moving forward.,Interaction with Other Road Users:Traffic:Moving forward:Normally
+383,since it is stuck behind traffic.,Interaction with Other Road Users:Traffic:Stop
+521,since there were no cars behind.,Unclassified
+965,as the vehicle in front of it drives forward slowly.,Interaction with Other Road Users:Lead vehicle:Moving forward:Slowly
+1047,The car has moved through the intersection,Ego car driving intention: Vehicle longitudinal activity:Driving forward
+1780,as the cars in front are moving quicker.,Interaction with Other Road Users:Lead vehicle:Moving forward:Fast
+258,The car is is stopping in the roadway,Ego car driving intention: Vehicle longitudinal activity:Stop
+1309,to pass a stopped car.,Interaction with Other Road Users:Lead vehicle:Stop
+442,because the car that obstructed has accelerated.,Interaction with Other Road Users:Lead vehicle:Accelerating
+905,since the car had just turned right.,Ego car driving intention: Vehicle lateral activity:Turning
+18,because of a stop sign.,Traffic Conditions:Traffic Sign:Stop sign
+2010,because the light is green and traffic is moving.,Traffic Conditions:Traffic Light:Green light&Interaction with Other Road Users:Traffic:Moving forward:Normally 
+350,Traffic ahead of the car is slowly advancing.,Interaction with Other Road Users:Traffic:Moving forward:Slowly
+1486,when the vehicle in front of it moves forward.,Interaction with Other Road Users:Lead vehicle:Moving forward:Normally
+1668,as it prepares to park.,Ego car driving intention: Vehicle longitudinal activity:Park
+393,because another car pulls into the lane.,Unclassified
+157,as traffic in front of it moves slowly past vehicles stopped on the right side of the road.,Interaction with Other Road Users:Lead vehicle:Moving forward:Slowly
+2003,The car has completed its passing maneuver and is moving toward an intersection ahead.,Ego car driving intention: Vehicle longitudinal activity:Passing
+675,because it's waiting for traffic to clear.,Interaction with Other Road Users:Traffic:Stop
+1987,because it's waiting for traffic to clear.,Interaction with Other Road Users:Traffic:Stop
+1987,There are no obstructions ahead of the car on the roadway,Road Condition:Availability:Clear Road
+274,because the vehicle in front of it is driving at a normal speed.,Interaction with Other Road Users:Lead vehicle:Moving forward:Normally
+662,because the vehicle in front of it is driving at a normal speed.,Interaction with Other Road Users:Lead vehicle:Moving forward:Normally
+662,since it is turning left and the light is red.,Traffic Conditions:Traffic Light:Red light
+1111,because the car in front has stopped.,Interaction with Other Road Users:Lead vehicle:Stop
+386,because there are no cars near it.,Road Condition:Availability:Clear Road
+2092,The car has completed its lane change maneuver and is driving forward in the left hand lane.,Ego car driving intention: Vehicle lateral activity:Changing lane&Ego car driving intention: Vehicle longitudinal activity:Driving forward
+2117,since the light will be green.,Traffic Conditions:Traffic Light:Green light
+1926,because the traffic light is red.,Traffic Conditions:Traffic Light:Red light
+1260,because traffic is slowing down.,Interaction with Other Road Users:Traffic:Decelerating
+1958,because traffic is moving at a steady speed.,Interaction with Other Road Users:Traffic:Moving forward:Normally
+1176,because the stopped car is partially in its lane.,Interaction with Other Road Users:Lead vehicle:Stop
+1566,"The car is slowing to a stop as it enters a roadway, yielding to traffic on the roadway",Ego car driving intention: Vehicle lateral activity:Decelerating
+1587,The car is approaching an intersection controlled by a stop sign.,Traffic Conditions:Traffic Sign:Stop sign
+1007,since the lane is clear of cars.,Road Condition:Availability:Clear Road
+1048,since it can't move forward.,Ego car driving intention: Vehicle longitudinal activity:Stop
+1466,The car has completed its passing maneuver and is moving forward down the roadway.,Ego car driving intention: Vehicle longitudinal activity:Passing&Ego car driving intention: Vehicle longitudinal activity:Driving forward
+970,since there is a car up ahead to keep track of.,Unclassified
+670,since the light is red.,Traffic Conditions:Traffic Light:Red light
+1753,because traffic is starting to go through the green light.,Traffic Conditions:Traffic Light:Green light
+150,while waiting for the stoplight to change,Traffic Conditions:Traffic Sign:Stop sign
+1476,The car is approaching an intersection controlled by a stop sign,Traffic Conditions:Traffic Sign:Stop sign
+1338,because the light has turned green and traffic is advancing.,Traffic Conditions:Traffic Light:Green light
+2030,because traffic is stopped.,Interaction with Other Road Users:Traffic:Stop
+615,because cars ahead are backed up at a light.,Interaction with Other Road Users:Lead vehicle:Decelerating
+457,because it has the right of way.,Unclassified
+2032,because it is parked near the left side of the street.,Ego car driving intention: Vehicle longitudinal activity:Park
+1705,as it takes evasive action to avoid the car that is riding the center lane,Unclassified
+983,because traffic is moving forward.,Interaction with Other Road Users:Traffic:Moving forward:Normally
+439,since there is no traffic.,Road Condition:Availability:Clear Road
+1688,to avoid a vehicle parked on the right side of the road.,Interaction with Other Road Users:Lead vehicle:Park
+1838,at the red light.,Traffic Conditions:Traffic Light:Red light
+363,Traffic ahead of the car is stopped at an intersection controlled by a red light.,Interaction with Other Road Users:Traffic:Stop&Traffic Conditions:Traffic Light:Red light
+946,to wait for cross traffic to subside.,Interaction with Other Road Users:Traffic:Heavy
+1653,because the lane to the right is free.,Road Condition:Availability:Clear Road
+956,because the van in front wasn't moving,Interaction with Other Road Users:Lead vehicle:Stop
+25,because the lights are green and there is little traffic.,Traffic Conditions:Traffic Light:Green light
+3,because there are no cars in its lane of traffic.,Road Condition:Availability:Clear Road
+770,as the vehicle in front of it slows.,Interaction with Other Road Users:Lead vehicle:Decelerating
+861,since it is trying to move further slightly.,Ego car driving intention: Vehicle longitudinal activity:Driving forward
+1218,because there are no nearby cars in its lane.,Road Condition:Availability:Clear Road
+1049,since the cars in front got to close to the car.,Unclassified
+1307,Traffic ahead of the car is stopped,Interaction with Other Road Users:Lead vehicle:Stop
+1777,as it moves in heavy traffic,Interaction with Other Road Users:Traffic:Heavy
+1017,because there are no other cars on the road.,Road Condition:Availability:Clear Road
+1537,because there is no nearby traffic.,Road Condition:Availability:Clear Road
+1569,because the car was on the right side.,Unclassified
+1068,since the cars in front are also driving too.,Interaction with Other Road Users:Lead vehicle:Moving forward:Normally
+1516,because the driver decided to stop for a bit.,Ego car driving intention: Vehicle longitudinal activity:Stop
+1868,because traffic ahead is moving slowly.,Interaction with Other Road Users:Traffic:Moving forward:Slowly
+171,to avoid a car driving quickly in the lane to its left.,Unclassified
+392,because the car had moved into the road.,Unclassified
+580,because traffic in front of it is stopped.,Traffic Conditions:Traffic Sign:Stop sign
+1908,because a turning car has just moved out of the way and the lights ahead are green.,Traffic Conditions:Traffic Light:Green light
+901,because there are no nearby cars in front of it.,Road Condition:Availability:Clear Road
+36,The car is making a left hand turn through an intersection,Ego car driving intention: Vehicle lateral activity:Turning
+1355,until the light turns green.,Traffic Conditions:Traffic Light:Green light
+238,as it continues down the road,Ego car driving intention: Vehicle longitudinal activity:Driving forward
+1876,The car is approaching an intersection controlled by a stop sign.,Traffic Conditions:Traffic Sign:Stop sign
+271,because the street is clear.,Road Condition:Availability:Clear Road
+537,because traffic is moving normally.,Interaction with Other Road Users:Lead vehicle:Moving forward:Normally
+721,because the light has turned red.,Traffic Conditions:Traffic Light:Red light
+1577,to pass traffic in the right lane.,Ego car driving intention: Vehicle longitudinal activity:Passing
+811,since there's a red light ahead.,Traffic Conditions:Traffic Light:Red light
+1056,since the light turned green.,Traffic Conditions:Traffic Light:Green light
+919,because the car has merged and there is less congestion.,Ego car driving intention: Vehicle longitudinal activity:Merging
+1633,since the light is green and the road is clear to turn.,Traffic Conditions:Traffic Light:Green light&Road Condition:Availability:Clear Road
+1858,since the light is green and the road is clear to turn.,Traffic Conditions:Traffic Light:Green light&Road Condition:Availability:Clear Road
+1858,The car has returned to the middle lane and is proceeding down the roadway,Ego car driving intention: Vehicle lateral activity:Turning
+1233,since the red light doesn't allow for the car to go forward.,Traffic Conditions:Traffic Light:Red light
+1749,since traffic on the road is moving slowly.,Interaction with Other Road Users:Traffic:Moving forward:Slowly
+1519,because a car in front is parking,Interaction with Other Road Users:Lead vehicle:Park
+266,because a car in front is parking,Interaction with Other Road Users:Lead vehicle:Park
+266,because the lights are green,Traffic Conditions:Traffic Light:Green light
+1351,to enter another road.,Ego car driving intention: Vehicle lateral activity:Enter another road
+1950,as it approaches slow moving traffic in the lane ahead.,Interaction with Other Road Users:Traffic:Moving forward:Slowly
+1515,as it drives through a parking lot.,Unclassified
+1539,since there is a car to the left.,Unclassified

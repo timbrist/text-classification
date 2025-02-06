@@ -203,8 +203,8 @@ class MultilabelTrainer:
 def test():
     dataprocess = Dataprocess("sample.csv")
     clean_df, train_dataset, test_dataset, num_labels = dataprocess.get_dataset(text_column='Jusitfication ', label_column='Category')
-    small_train_dataset = torch.utils.data.Subset(train_dataset, range(50))  # Use only 100 samples
-    small_test_dataset = torch.utils.data.Subset(test_dataset, range(10))  # Use only 20 samples
+    small_train_dataset = torch.utils.data.Subset(train_dataset, range(25))  # Use only 100 samples
+    small_test_dataset = torch.utils.data.Subset(test_dataset, range(5))  # Use only 20 samples
     multilabeltrainer = MultilabelTrainer(num_labels, small_train_dataset, small_test_dataset)
     multilabeltrainer.run()
     multilabeltrainer.inference(clean_df)
