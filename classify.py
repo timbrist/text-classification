@@ -16,12 +16,13 @@ import os
 MODEL_NAME = "bert-base-uncased"
 TRAIN_TEST_SPLIT = 0.8
 BATCH_SIZE = 8
-NUM_EPOCHS = 5
-LEARNING_RATE = 5e-5
+NUM_EPOCHS = 20
+LEARNING_RATE = 3e-5
+PREDICT_THRESHOLD = 0.7
 TOKENIZER = BertTokenizer.from_pretrained(MODEL_NAME)
 
 # File paths
-DATA_PATH = "samples.csv"
+DATA_PATH = "data.csv"
 LOG_DIR = "./log"
 OUTPUT_DIR = "./results"
 
@@ -123,6 +124,8 @@ class MultiLabelTrainer:
                 output_dir=OUTPUT_DIR,
                 evaluation_strategy="epoch",
                 save_strategy="epoch",
+                lr_scheduler_type="cosine",
+                warmup_steps=1000,
                 per_device_train_batch_size=BATCH_SIZE,
                 per_device_eval_batch_size=BATCH_SIZE,
                 num_train_epochs=NUM_EPOCHS,
@@ -147,7 +150,7 @@ class MultiLabelTrainer:
         """
         sigmoid = torch.nn.Sigmoid()
         probs = sigmoid(torch.Tensor(p.predictions))
-        y_pred = (probs >= 0.5).int().numpy()
+        y_pred = (probs >= PREDICT_THRESHOLD).int().numpy()
 
 
         return {
@@ -173,7 +176,7 @@ class MultiLabelTrainer:
 
         sigmoid = nn.Sigmoid()
         probs = sigmoid(outputs.logits.squeeze().cpu())
-        predictions = (probs >= 0.7).numpy().astype(int)
+        predictions = (probs >= PREDICT_THRESHOLD).numpy().astype(int)
 
         id2label = {idx: label for idx, label in enumerate(df.drop(columns=["id", "Justification"]).columns)}
         predicted_labels = [id2label[idx] for idx, val in enumerate(predictions) if val == 1]
