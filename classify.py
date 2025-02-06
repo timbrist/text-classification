@@ -9,9 +9,9 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
 import torch.nn as nn
-from transformers import Trainer
+from transformers import Trainer,EvalPrediction
 
 
 TOKENIZER = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -147,24 +147,33 @@ class MultilabelTrainer:
 
             return (loss, outputs) if return_outputs else loss
         
-    def compute_metrics(self,p):
-        sigmoid = lambda x: 1 / (1 + np.exp(-x))  # Sigmoid activation
-        preds = sigmoid(p.predictions) > 0.5  # Convert logits to binary (threshold = 0.5)
-        labels = p.label_ids
+    # source: https://jesusleal.io/2021/04/21/Longformer-multilabel-classification/
+    def _multi_label_metrics(self, predictions, labels, threshold=0.5):
+        # first, apply sigmoid on predictions which are of shape (batch_size, num_labels)
+        sigmoid = torch.nn.Sigmoid()
+        probs = sigmoid(torch.Tensor(predictions))
+        # next, use threshold to turn them into integer predictions
+        y_pred = np.zeros(probs.shape)
+        y_pred[np.where(probs >= threshold)] = 1
+        # finally, compute metrics
+        y_true = labels
+        f1_micro_average = f1_score(y_true=y_true, y_pred=y_pred, average='micro')
+        roc_auc = roc_auc_score(y_true, y_pred, average = 'micro')
+        accuracy = accuracy_score(y_true, y_pred)
+        # return as dictionary
+        metrics = {'f1': f1_micro_average,
+                  'roc_auc': roc_auc,
+                  'accuracy': accuracy}
+        return metrics
 
-        acc = accuracy_score(labels, preds)  # Multi-label accuracy
-
-        # Compute F1-score with zero_division=1 to avoid warnings
-        f1_micro = f1_score(labels, preds, average="micro", zero_division=1)
-        f1_macro = f1_score(labels, preds, average="macro", zero_division=1)
-        f1_samples = f1_score(labels, preds, average="samples", zero_division=1)
-
-        return {
-            "accuracy": acc,
-            "f1_micro": f1_micro,
-            "f1_macro": f1_macro,
-            "f1_samples": f1_samples
-        }
+    def compute_metrics(self, p: EvalPrediction):
+        preds = p.predictions[0] if isinstance(p.predictions, 
+                tuple) else p.predictions
+        result = self._multi_label_metrics(
+            predictions=preds, 
+            labels=p.label_ids)
+        return result
+    
 
     def run(self):
         self.trainer.train()
