@@ -1,234 +1,193 @@
 """
-This script provides a easy way to train the model: bert-base-uncased in local machine.
-But it is leak of flexibility, especially data processing part.
+This script trains a BERT-based multi-label text classifier using PyTorch and Hugging Face Transformers.
 """
 
 import pandas as pd
-from sklearn.preprocessing import MultiLabelBinarizer
-import torch
-from torch.utils.data import Dataset, DataLoader
-from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
 import numpy as np
-from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
+import torch
 import torch.nn as nn
-from transformers import Trainer,EvalPrediction
+from torch.utils.data import Dataset, DataLoader, random_split
+from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments, EvalPrediction
+from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
+import os
+
+# Configuration
+MODEL_NAME = "bert-base-uncased"
+TRAIN_TEST_SPLIT = 0.8
+BATCH_SIZE = 8
+NUM_EPOCHS = 5
+LEARNING_RATE = 5e-5
+TOKENIZER = BertTokenizer.from_pretrained(MODEL_NAME)
+
+# File paths
+DATA_PATH = "samples.csv"
+LOG_DIR = "./log"
+OUTPUT_DIR = "./results"
 
 
-TOKENIZER = BertTokenizer.from_pretrained("bert-base-uncased")
+class DataProcessor:
+    """
+    Handles data loading, preprocessing, and conversion to multi-label format.
+    """
 
-ID_COLUMN = "id"
-TEXT_COLUMN= "Jusitfication "
-LABEL_COLUMN = "Category"
-
-DEBUG = False
-
-"""
-This class is used 
-"""
-class Dataprocess:
     def __init__(self, file_path):
-        self.df = pd.read_csv(file_path)
-    
+        self.file_path = file_path
+        self.df = self._load_data()
+        self.label_binarizer = None
+
+    def _load_data(self):
+        """
+        Load dataset from CSV and validate essential columns.
+        """
+        try:
+            df = pd.read_csv(self.file_path)
+            required_columns = {"id", "Justification", "Category"}
+            if not required_columns.issubset(df.columns):
+                raise ValueError(f"Missing required columns: {required_columns - set(df.columns)}")
+            return df
+        except Exception as e:
+            raise RuntimeError(f"Failed to load data: {e}")
+
+    def preprocess_labels(self):
+        """
+        Cleans and binarizes multi-label classification data.
+        """
+        df = self.df.dropna(subset=["Category"]).copy()
+        df["Category"] = df["Category"].str.lower().str.strip().astype(str).apply(lambda x: x.split("&"))
+        df["Category"] = df["Category"].apply(lambda labels: [label.strip() for label in labels])
+
+        # Fit MultiLabelBinarizer
+        unique_labels = sorted(set(label for labels in df["Category"] for label in labels))
+        self.label_binarizer = MultiLabelBinarizer(classes=unique_labels)
+        label_matrix = self.label_binarizer.fit_transform(df["Category"])
+
+        return df.drop(columns=["Category"]).join(pd.DataFrame(label_matrix, columns=unique_labels))
+
+    def get_datasets(self, text_column="Justification"):
+        """
+        Splits data into training and testing sets.
+        """
+        df = self.preprocess_labels()
+        texts, labels = df[text_column].tolist(), df.drop(columns=["id", text_column]).values
+
+        dataset = MultiLabelDataset(texts, labels, TOKENIZER)
+        train_size = int(TRAIN_TEST_SPLIT * len(dataset))
+        test_size = len(dataset) - train_size
+        train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+
+        return df, train_dataset, test_dataset, labels.shape[1]
+
+
+class MultiLabelDataset(Dataset):
     """
-    This function used for cleaning data for multi-labels classification.
-    it will lower the alphabets in the column, cancel the space at the end, 
-    split the multi labels that annotate with '&', and finally it will one-hot 
-    encoding for each categories. 
-
-    The exmaple dataset in csv file: 
-    Id, Text, Category
-    30, the car is about to do a right turn, ego car intension: turning
-    59, to move around a slow car in its current lane, ego car intension: turning&Interaction:Lead vehicle: Moving Slowly
-    86, as the car goes into the other lane, unclassified
+    Custom PyTorch dataset for multi-label classification.
     """
-    def _clean_data(self, label_column="labels"):
-        self.df = self.df.dropna(subset=[label_column]).copy()
 
-        self.df[label_column] = self.df[label_column].str.strip()
-        self.df[label_column] = self.df[label_column].str.strip().str.lower()
-        self.df[label_column] = self.df[label_column].astype(str).apply(lambda x: x.split("&"))
-        self.df[label_column] = self.df[label_column].apply(lambda labels: [label.strip() for label in labels])
-        
-        unique_labels = set(label for labels in self.df[label_column] for label in labels)
-        # print(unique_labels)
+    def __init__(self, texts, labels, tokenizer, max_length=512):
+        self.texts = texts
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_length = max_length
 
-        mlb = MultiLabelBinarizer(classes=sorted(unique_labels))
-        multi_hot_labels = mlb.fit_transform(self.df[label_column])
+    def __len__(self):
+        return len(self.texts)
 
-        label_df = pd.DataFrame(multi_hot_labels, columns=mlb.classes_)
-
-        # Merge with original dataset for reference
-        clean_df = self.df.drop(columns=[label_column]).join(label_df)
-
-        return clean_df
-    
-    # Define custom dataset
-    class MultiLabelDataset(Dataset):
-        def __init__(self, texts, labels, tokenizer, max_length=512):
-            self.texts = texts
-            self.labels = labels
-            self.tokenizer = tokenizer
-            self.max_length = max_length
-
-        def __len__(self):
-            return len(self.texts)
-
-        def __getitem__(self, idx):
-            encoding = self.tokenizer(
-                self.texts[idx],
-                padding="max_length",
-                truncation=True,
-                max_length=self.max_length,
-                return_tensors="pt"
-            )
-            item = {key: val.squeeze(0) for key, val in encoding.items()}  # Remove batch dim
-            item["labels"] = torch.tensor(self.labels[idx], dtype=torch.float)  # Multi-label
-            return item
-
-    def get_dataset(self, id_column="id", text_column="texts", label_column="labels"):
-        clean_df = self._clean_data(label_column=label_column)
-        # Extract text and labels
-        texts = clean_df[text_column].tolist()
-        labels = clean_df.drop(columns=[id_column, text_column]).values  # Multi-hot labels
-
-        # Split dataset (80% train, 20% test)
-        train_size = int(0.8 * len(clean_df))
-        test_size = len(clean_df) - train_size
-
-        # Create dataset instances
-        dataset = self.MultiLabelDataset(texts, labels, TOKENIZER)
-        train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
-
-        num_labels = labels.shape[1]
-
-        return clean_df, train_dataset, test_dataset, num_labels
-
-
-class MultilabelTrainer:
-    def __init__(self,num_labels, train_dataset,test_dataset, output_dir="./results", logging_dir="./log"):
-        self.num_labels = num_labels
-        
-        self.model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels, problem_type="multi_label_classification")
-
-        training_args = TrainingArguments(
-            output_dir=output_dir,             # Output directory
-            evaluation_strategy="epoch",               # Evaluate every epoch
-            save_strategy="epoch",
-            per_device_train_batch_size=8,      # Training batch size
-            per_device_eval_batch_size=8,       # Evaluation batch size
-            num_train_epochs=5,                 # Number of epochs
-            learning_rate=5e-5,  # Starting learning rate
-            warmup_steps=500,    # Number of steps to warm up the learning rate
-            lr_scheduler_type="linear",  # Type of learning rate scheduler
-            seed=42,  # Reproducibility seed
-            label_smoothing_factor=0.1,
-            weight_decay=0.01,                  # Regularization
-            logging_dir=logging_dir,               # Log directory
-            logging_steps=10,
-            load_best_model_at_end=True,
-            metric_for_best_model="accuracy",
-            report_to="none"  # Disable WandB logging
+    def __getitem__(self, idx):
+        encoding = self.tokenizer(
+            self.texts[idx],
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_length,
+            return_tensors="pt"
         )
+        return {
+            "input_ids": encoding["input_ids"].squeeze(0),
+            "attention_mask": encoding["attention_mask"].squeeze(0),
+            "labels": torch.tensor(self.labels[idx], dtype=torch.float)
+        }
 
-        self.trainer = self.CustomTrainer(
+
+class MultiLabelTrainer:
+    """
+    Manages model training and evaluation using Hugging Face's Trainer API.
+    """
+
+    def __init__(self, num_labels, train_dataset, test_dataset):
+        self.num_labels = num_labels
+        self.model = BertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=num_labels, problem_type="multi_label_classification")
+
+        self.trainer = Trainer(
             model=self.model,
-            args=training_args,
+            args=TrainingArguments(
+                output_dir=OUTPUT_DIR,
+                evaluation_strategy="epoch",
+                save_strategy="epoch",
+                per_device_train_batch_size=BATCH_SIZE,
+                per_device_eval_batch_size=BATCH_SIZE,
+                num_train_epochs=NUM_EPOCHS,
+                learning_rate=LEARNING_RATE,
+                weight_decay=0.01,
+                logging_dir=LOG_DIR,
+                logging_steps=10,
+                load_best_model_at_end=True,
+                metric_for_best_model="accuracy",
+                report_to="none"
+            ),
             train_dataset=train_dataset,
             eval_dataset=test_dataset,
             tokenizer=TOKENIZER,
             compute_metrics=self.compute_metrics
         )
 
-
-
-    class CustomTrainer(Trainer):
-        def compute_loss(self, model, inputs, return_outputs=False, **kwargs):  # Accept extra arguments
-            labels = inputs.pop("labels")  # Remove labels from inputs
-            outputs = model(**inputs)  # Forward pass
-            logits = outputs.logits  # Extract logits
-
-            # Define loss function for multi-label classification
-            loss_fn = nn.BCEWithLogitsLoss()
-            loss = loss_fn(logits, labels)
-
-            return (loss, outputs) if return_outputs else loss
-        
-    # source: https://jesusleal.io/2021/04/21/Longformer-multilabel-classification/
-    def _multi_label_metrics(self, predictions, labels, threshold=0.5):
-        # first, apply sigmoid on predictions which are of shape (batch_size, num_labels)
+    @staticmethod
+    def compute_metrics(p: EvalPrediction):
+        """
+        Computes multi-label classification metrics.
+        """
         sigmoid = torch.nn.Sigmoid()
-        probs = sigmoid(torch.Tensor(predictions))
-        # next, use threshold to turn them into integer predictions
-        y_pred = np.zeros(probs.shape)
-        y_pred[np.where(probs >= threshold)] = 1
-        # finally, compute metrics
-        y_true = labels
-        f1_micro_average = f1_score(y_true=y_true, y_pred=y_pred, average='micro')
-        roc_auc = roc_auc_score(y_true, y_pred, average = 'micro')
-        accuracy = accuracy_score(y_true, y_pred)
-        # return as dictionary
-        metrics = {'f1': f1_micro_average,
-                  'roc_auc': roc_auc,
-                  'accuracy': accuracy}
-        return metrics
+        probs = sigmoid(torch.Tensor(p.predictions))
+        y_pred = (probs >= 0.5).int().numpy()
 
-    def compute_metrics(self, p: EvalPrediction):
-        preds = p.predictions[0] if isinstance(p.predictions, 
-                tuple) else p.predictions
-        result = self._multi_label_metrics(
-            predictions=preds, 
-            labels=p.label_ids)
-        return result
-    
 
-    def run(self):
+        return {
+            "f1": f1_score(p.label_ids, y_pred, average='micro'),
+            "roc_auc": roc_auc_score(p.label_ids, y_pred, average="micro"),
+            "accuracy": accuracy_score(p.label_ids, y_pred)
+        }
+
+    def train(self):
+        """
+        Runs the training loop.
+        """
         self.trainer.train()
-        # Evaluate the model
         eval_results = self.trainer.evaluate()
         print("Evaluation Results:", eval_results)
 
-    
-    def inference(self,clean_df):
-        # Example prediction
-        example_text = "to move around a slow car in its current lane."
-
+    def predict(self, df, example_text="to move around a slow car in its current lane."):
+        """
+        Runs inference on a single example.
+        """
         encoding = TOKENIZER(example_text, return_tensors="pt")
-        encoding = {k: v.to(self.trainer.model.device) for k,v in encoding.items()}
+        outputs = self.trainer.model(**{k: v.to(self.model.device) for k, v in encoding.items()})
 
-        outputs = self.trainer.model(**encoding)
+        sigmoid = nn.Sigmoid()
+        probs = sigmoid(outputs.logits.squeeze().cpu())
+        predictions = (probs >= 0.7).numpy().astype(int)
 
-        logits = outputs.logits
-        print(logits.shape)
+        id2label = {idx: label for idx, label in enumerate(df.drop(columns=["id", "Justification"]).columns)}
+        predicted_labels = [id2label[idx] for idx, val in enumerate(predictions) if val == 1]
+        print("Predicted labels:", predicted_labels)
 
-        sigmoid = torch.nn.Sigmoid()
-        probs = sigmoid(logits.squeeze().cpu())
-        predictions = np.zeros(probs.shape)
-        predictions[np.where(probs >= 0.7)] = 1
-        # turn predicted id's into actual label names
-        id2label = {idx: label for idx, label in enumerate(clean_df.drop(columns=[ID_COLUMN, TEXT_COLUMN]).columns)}
-        predicted_labels = [id2label[idx] for idx, label in enumerate(predictions) if label == 1.0]
-        print(predicted_labels)
-
-
-
-def test():
-    dataprocess = Dataprocess("samples.csv")
-    clean_df, train_dataset, test_dataset, num_labels = dataprocess.get_dataset(text_column=TEXT_COLUMN, label_column=LABEL_COLUMN)
-    small_train_dataset = torch.utils.data.Subset(train_dataset, range(25))  # Use only 100 samples
-    small_test_dataset = torch.utils.data.Subset(test_dataset, range(5))  # Use only 20 samples
-    multilabeltrainer = MultilabelTrainer(num_labels, small_train_dataset, small_test_dataset)
-    multilabeltrainer.run()
-    multilabeltrainer.inference(clean_df)
 
 def main():
-    dataprocess = Dataprocess("data.csv")
-    clean_df, train_dataset, test_dataset, num_labels = dataprocess.get_dataset(text_column=TEXT_COLUMN, label_column=LABEL_COLUMN)
-    multilabeltrainer = MultilabelTrainer(num_labels, train_dataset, test_dataset)
-    multilabeltrainer.run()
-    multilabeltrainer.inference(clean_df)
+    processor = DataProcessor(DATA_PATH)
+    df, train_dataset, test_dataset, num_labels = processor.get_datasets()
+
+    trainer = MultiLabelTrainer(num_labels, train_dataset, test_dataset)
+    trainer.train()
+    trainer.predict(df)
 
 
-if DEBUG:
-    test()
-else:
+if __name__ == "__main__":
     main()

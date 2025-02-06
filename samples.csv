@@ -1,4 +1,4 @@
-id,Jusitfication ,Category
+id,Justification,Category
 743,since it's about to do a right turn.,Ego car driving intention: Vehicle lateral activity:Turning
 1101,because traffic is moving forward.,Interaction with Other Road Users:Traffic:Moving forward:Normally
 383,since it is stuck behind traffic.,Interaction with Other Road Users:Traffic:Stop
