@@ -16,6 +16,12 @@ from transformers import Trainer,EvalPrediction
 
 TOKENIZER = BertTokenizer.from_pretrained("bert-base-uncased")
 
+ID_COLUMN = "id"
+TEXT_COLUMN= "Jusitfication "
+LABEL_COLUMN = "Category"
+
+DEBUG = False
+
 """
 This class is used 
 """
@@ -181,42 +187,48 @@ class MultilabelTrainer:
         eval_results = self.trainer.evaluate()
         print("Evaluation Results:", eval_results)
 
-    def _predict(self, text, clean_df):
-        self.model.eval()
-        encoding = TOKENIZER(text, return_tensors="pt", truncation=True, padding="max_length", max_length=512)
-        encoding = {k: v.to(self.trainer.model.device) for k, v in encoding.items()}
-        
-        with torch.no_grad():
-            outputs = self.trainer.model(**encoding)
-        
-        logits = outputs.logits
-        sigmoid = torch.nn.Sigmoid()
-        probs = sigmoid(logits.squeeze().cpu())
-        predictions = np.zeros(probs.shape)
-        predictions[np.where(probs >= 0.5)] = 1
-        
-        # Map predictions back to labels
-        id2label = {idx: label for idx, label in enumerate(clean_df.drop(columns=["id", "Jusitfication"]).columns)}
-        predicted_labels = [id2label[idx] for idx, label in enumerate(predictions) if label == 1.0]
-        
-        return predicted_labels
     
     def inference(self,clean_df):
         # Example prediction
         example_text = "to move around a slow car in its current lane."
-        predicted_labels = self._predict(example_text, clean_df)
-        print("Predicted Labels:", predicted_labels)
+
+        encoding = TOKENIZER(example_text, return_tensors="pt")
+        encoding = {k: v.to(self.trainer.model.device) for k,v in encoding.items()}
+
+        outputs = self.trainer.model(**encoding)
+
+        logits = outputs.logits
+        print(logits.shape)
+
+        sigmoid = torch.nn.Sigmoid()
+        probs = sigmoid(logits.squeeze().cpu())
+        predictions = np.zeros(probs.shape)
+        predictions[np.where(probs >= 0.7)] = 1
+        # turn predicted id's into actual label names
+        id2label = {idx: label for idx, label in enumerate(clean_df.drop(columns=[ID_COLUMN, TEXT_COLUMN]).columns)}
+        predicted_labels = [id2label[idx] for idx, label in enumerate(predictions) if label == 1.0]
+        print(predicted_labels)
 
 
 
 def test():
-    dataprocess = Dataprocess("sample.csv")
-    clean_df, train_dataset, test_dataset, num_labels = dataprocess.get_dataset(text_column='Jusitfication ', label_column='Category')
+    dataprocess = Dataprocess("samples.csv")
+    clean_df, train_dataset, test_dataset, num_labels = dataprocess.get_dataset(text_column=TEXT_COLUMN, label_column=LABEL_COLUMN)
     small_train_dataset = torch.utils.data.Subset(train_dataset, range(25))  # Use only 100 samples
     small_test_dataset = torch.utils.data.Subset(test_dataset, range(5))  # Use only 20 samples
     multilabeltrainer = MultilabelTrainer(num_labels, small_train_dataset, small_test_dataset)
     multilabeltrainer.run()
     multilabeltrainer.inference(clean_df)
 
+def main():
+    dataprocess = Dataprocess("data.csv")
+    clean_df, train_dataset, test_dataset, num_labels = dataprocess.get_dataset(text_column=TEXT_COLUMN, label_column=LABEL_COLUMN)
+    multilabeltrainer = MultilabelTrainer(num_labels, train_dataset, test_dataset)
+    multilabeltrainer.run()
+    multilabeltrainer.inference(clean_df)
 
-test()
+
+if DEBUG:
+    test()
+else:
+    main()
