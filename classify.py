@@ -17,9 +17,11 @@ MODEL_NAME = "bert-base-uncased"
 TRAIN_TEST_SPLIT = 0.8
 BATCH_SIZE = 8
 NUM_EPOCHS = 20
-LEARNING_RATE = 3e-5
+LEARNING_RATE = 1e-5
 PREDICT_THRESHOLD = 0.7
 TOKENIZER = BertTokenizer.from_pretrained(MODEL_NAME)
+
+
 
 # File paths
 DATA_PATH = "data.csv"
@@ -81,33 +83,39 @@ class DataProcessor:
 
 
 class MultiLabelDataset(Dataset):
-    """
-    Custom PyTorch dataset for multi-label classification.
-    """
-
     def __init__(self, texts, labels, tokenizer, max_length=512):
-        self.texts = texts
         self.labels = labels
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-
-    def __len__(self):
-        return len(self.texts)
-
-    def __getitem__(self, idx):
-        encoding = self.tokenizer(
-            self.texts[idx],
-            padding="max_length",
+        self.encodings = tokenizer.batch_encode_plus(
+            texts,
+            padding=True,
             truncation=True,
-            max_length=self.max_length,
+            max_length=max_length,
             return_tensors="pt"
         )
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
         return {
-            "input_ids": encoding["input_ids"].squeeze(0),
-            "attention_mask": encoding["attention_mask"].squeeze(0),
+            "input_ids": self.encodings["input_ids"][idx],
+            "attention_mask": self.encodings["attention_mask"][idx],
             "labels": torch.tensor(self.labels[idx], dtype=torch.float)
         }
 
+    
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, inputs, targets):
+        BCE_loss = nn.BCEWithLogitsLoss()(inputs, targets)
+        probs = torch.sigmoid(inputs)
+        focal_weight = self.alpha * (1 - probs) ** self.gamma
+        return (focal_weight * BCE_loss).mean()
 
 class MultiLabelTrainer:
     """
@@ -117,23 +125,33 @@ class MultiLabelTrainer:
     def __init__(self, num_labels, train_dataset, test_dataset):
         self.num_labels = num_labels
         self.model = BertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=num_labels, problem_type="multi_label_classification")
+        self.model.config.problem_type = "multi_label_classification"
+        self.model.loss_fn = FocalLoss()
+
+        warmup_ratio = 0.1  # Use 10% of total steps as warmup
+        num_training_steps = len(train_dataset) * NUM_EPOCHS // BATCH_SIZE
+        warmup_steps = int(warmup_ratio * num_training_steps)
+
 
         self.trainer = Trainer(
             model=self.model,
             args=TrainingArguments(
                 output_dir=OUTPUT_DIR,
                 evaluation_strategy="epoch",
-                save_strategy="epoch",
-                lr_scheduler_type="cosine",
-                warmup_steps=1000,
+                save_strategy="steps",
+                save_steps=1000,  # Save every 1000 steps
+                save_total_limit=1,  # Keep only the best model
+                load_best_model_at_end=True,
                 per_device_train_batch_size=BATCH_SIZE,
                 per_device_eval_batch_size=BATCH_SIZE,
                 num_train_epochs=NUM_EPOCHS,
                 learning_rate=LEARNING_RATE,
-                weight_decay=0.01,
+                weight_decay=0.1,
+                warmup_steps=warmup_steps,
+                lr_scheduler_type="linear",
+                seed=42,
                 logging_dir=LOG_DIR,
-                logging_steps=10,
-                load_best_model_at_end=True,
+                # logging_steps=10,
                 metric_for_best_model="accuracy",
                 report_to="none"
             ),
@@ -145,17 +163,13 @@ class MultiLabelTrainer:
 
     @staticmethod
     def compute_metrics(p: EvalPrediction):
-        """
-        Computes multi-label classification metrics.
-        """
-        sigmoid = torch.nn.Sigmoid()
-        probs = sigmoid(torch.Tensor(p.predictions))
+        sigmoid = nn.Sigmoid()
+        probs = sigmoid(torch.tensor(p.predictions))
         y_pred = (probs >= PREDICT_THRESHOLD).int().numpy()
-
 
         return {
             "f1": f1_score(p.label_ids, y_pred, average='micro'),
-            "roc_auc": roc_auc_score(p.label_ids, y_pred, average="micro"),
+            "roc_auc": roc_auc_score(p.label_ids, y_pred, average="macro"),
             "accuracy": accuracy_score(p.label_ids, y_pred)
         }
 
