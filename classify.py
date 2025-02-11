@@ -152,7 +152,7 @@ class MultiLabelTrainer:
                 seed=42,
                 logging_dir=LOG_DIR,
                 # logging_steps=10,
-                metric_for_best_model="accuracy",
+                metric_for_best_model="f1",
                 report_to="none"
             ),
             train_dataset=train_dataset,
