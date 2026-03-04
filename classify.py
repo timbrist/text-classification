@@ -11,6 +11,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
     EvalPrediction,
+    BertConfig
 )
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
@@ -21,15 +22,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-MODEL_NAME = "bert-base-uncased"
+MODEL_NAME = "bert-large-uncased"
 TRAIN_TEST_SPLIT = 0.8
-BATCH_SIZE = 8
-NUM_EPOCHS = 10
-LEARNING_RATE = 5e-5
+BATCH_SIZE = 32
+NUM_EPOCHS = 20
+LEARNING_RATE = 9e-5
 PREDICT_THRESHOLD = 0.7
+WEIGHT_DECAY = 0.5
+DROPOUT = 0.1
+WARMUP_RATIO = 0.1
+
 LOG_DIR = "./log"
 OUTPUT_DIR = "./results"
-DATA_PATH = "data.csv"
+DATA_PATH = "cleaned_data.csv"
 
 # Ensure directories exist
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -120,16 +125,21 @@ class MultiLabelTrainer:
     
     def __init__(self, num_labels: int, train_dataset: Dataset, test_dataset: Dataset):
         self.num_labels = num_labels
+
+
         self.model = BertForSequenceClassification.from_pretrained(
             MODEL_NAME,
             num_labels=num_labels,
-            problem_type="multi_label_classification"
+            problem_type="multi_label_classification",
+            hidden_dropout_prob=DROPOUT,           # Dropout probability for fully connected layers
+            attention_probs_dropout_prob=DROPOUT   # Dropout probability for attention weights
         )
 
 
-        warmup_ratio = 0.1  # Use 10% of total steps as warmup
+        warmup_ratio = WARMUP_RATIO  # Use 10% of total steps as warmup
         num_training_steps = (len(train_dataset) * NUM_EPOCHS) // BATCH_SIZE
         warmup_steps = int(warmup_ratio * num_training_steps)
+        print(f"the warmup steps: {warmup_steps}")
 
         training_args = TrainingArguments(
             output_dir=OUTPUT_DIR,
@@ -139,10 +149,11 @@ class MultiLabelTrainer:
             per_device_eval_batch_size=BATCH_SIZE,
             num_train_epochs=NUM_EPOCHS,
             learning_rate=LEARNING_RATE,
-            weight_decay=0.1,
+            weight_decay=WEIGHT_DECAY,
             warmup_steps=warmup_steps,
             lr_scheduler_type="linear",
             seed=42,
+            logging_steps=5,
             logging_dir=LOG_DIR,
             load_best_model_at_end=True,
             metric_for_best_model="accuracy",

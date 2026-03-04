@@ -52,10 +52,10 @@ print("labels: ", id2label)
 
 
 # Path to trained model
-MODEL_PATH = "results/epoch20-acc081"
+MODEL_PATH = "results/f186roc91acc81"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 16  # Adjust based on GPU memory
-PREDICT_THRESHOLD = 0.7  # Change this for better precision-recall balance
+BATCH_SIZE = 32  # Adjust based on GPU memory
+PREDICT_THRESHOLD = 0.8  # Change this for better precision-recall balance
 
 # Load tokenizer and model
 tokenizer = BertTokenizer.from_pretrained(MODEL_PATH)
